@@ -52,12 +52,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (user.emailVerifiedAt) {
-      // Already verified, create session and proceed
-      await createSession(user.id);
-      return NextResponse.json({
-        success: true,
-        message: "Email is already verified.",
-      });
+      // Already verified. Do NOT create a session here: reaching this point
+      // requires no proof of ownership, so minting a session would let anyone
+      // who knows a verified email sign in with a guessed code.
+      // Verification is not an authentication path — sign-in is.
+      return NextResponse.json(
+        {
+          success: true,
+          alreadyVerified: true,
+          message: "Email is already verified. Please sign in.",
+        },
+        { status: 200 }
+      );
     }
 
     // 4. Find valid active verification code

@@ -1,16 +1,24 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { verifyEmailSchema } from "@/lib/validation/auth-schemas";
+import DevMailbox from "@/components/DevMailbox";
+import { usePendingEmail, useHydrated, clearPendingEmail } from "@/lib/client/flow-context";
 
 function VerifyEmailForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialEmail = searchParams.get("email") || "";
 
-  const [email, setEmail] = useState(initialEmail);
+  // The email arrives via sessionStorage rather than the query string, so it
+  // never appears in the address bar, the access log, or a Referer header.
+  const storedEmail = usePendingEmail();
+  const hydrated = useHydrated();
+
+  // Typed input wins once the user edits it; before that, the stored value.
+  const [typedEmail, setTypedEmail] = useState<string | null>(null);
+  const email = typedEmail ?? storedEmail;
+
   const [code, setCode] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -61,6 +69,7 @@ function VerifyEmailForm() {
       }
 
       // Verification created an authenticated session; redirect directly to minimal dashboard
+      clearPendingEmail();
       router.push("/dashboard");
       router.refresh();
     } catch {
@@ -130,8 +139,10 @@ function VerifyEmailForm() {
           </div>
         )}
 
+        <DevMailbox address={email} />
+
         <form onSubmit={handleSubmit} className="auth-form" noValidate>
-          {!initialEmail && (
+          {hydrated && !email && (
             <div className="form-group">
               <label htmlFor="verify-email-input" className="form-label">
                 Email Address
@@ -143,7 +154,7 @@ function VerifyEmailForm() {
                 required
                 className="form-input"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setTypedEmail(e.target.value)}
                 disabled={loading}
               />
             </div>
@@ -212,10 +223,8 @@ function VerifyEmailForm() {
   );
 }
 
+// No Suspense boundary is needed any more: the page no longer reads search
+// params, which was the only thing forcing the client-only boundary.
 export default function VerifyEmailPage() {
-  return (
-    <Suspense fallback={<div className="auth-page"><div className="auth-card">Loading...</div></div>}>
-      <VerifyEmailForm />
-    </Suspense>
-  );
+  return <VerifyEmailForm />;
 }

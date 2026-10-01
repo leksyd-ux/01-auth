@@ -1,13 +1,30 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { resetPasswordSchema } from "@/lib/validation/auth-schemas";
+import {
+  resetPasswordSchema,
+  describePasswordProblem,
+} from "@/lib/validation/auth-schemas";
+import {
+  useResetToken,
+  useHydrated,
+  consumeTokenFromHash,
+  clearResetToken,
+} from "@/lib/client/flow-context";
 
 function ResetPasswordForm() {
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token") || "";
+  // The token arrives in the URL fragment, which the browser never sends to the
+  // server. On arrival it is moved into sessionStorage and the address bar is
+  // rewritten, so the token survives neither the access log, nor the Referer
+  // header, nor the back button — and the user sees a clean /reset-password URL
+  // like every other page.
+  const token = useResetToken();
+  const hydrated = useHydrated();
+
+  useEffect(() => {
+    consumeTokenFromHash();
+  }, []);
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -16,13 +33,16 @@ function ResetPasswordForm() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  if (!token) {
+  // Names only the character classes still missing, recomputed as the user types.
+  const passwordProblem = errors.password?.[0] ?? describePasswordProblem(password);
+
+  if (hydrated && !token) {
     return (
       <main className="auth-page">
         <div className="auth-card">
           <header className="auth-header">
             <h1 className="auth-title">Invalid Reset Link</h1>
-            <p className="auth-subtitle">No reset token was provided in the URL.</p>
+            <p className="auth-subtitle">No reset token was provided in the link.</p>
           </header>
           <div role="alert" className="alert alert-danger">
             Please use the link sent to your email address or request a new reset link.
@@ -71,6 +91,8 @@ function ResetPasswordForm() {
         return;
       }
 
+      // Single-use token is now spent; drop it so a reload cannot replay it.
+      clearResetToken();
       setSuccess(true);
     } catch {
       setServerError("Network error. Please check your connection.");
@@ -122,16 +144,19 @@ function ResetPasswordForm() {
               name="password"
               type="password"
               required
+              minLength={8}
+              maxLength={64}
               autoComplete="new-password"
               className="form-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              aria-describedby={errors.password ? "password-error" : undefined}
+              aria-invalid={passwordProblem ? true : undefined}
+              aria-describedby={passwordProblem ? "password-error" : undefined}
             />
-            {errors.password && (
-              <span id="password-error" className="form-error">
-                {errors.password[0]}
+            {passwordProblem && (
+              <span id="password-error" className="form-error" role="alert">
+                {passwordProblem}
               </span>
             )}
           </div>
@@ -177,10 +202,8 @@ function ResetPasswordForm() {
   );
 }
 
+// No Suspense boundary needed: the token now comes from the fragment and
+// sessionStorage in an effect, not from search params.
 export default function ResetPasswordPage() {
-  return (
-    <Suspense fallback={<div className="auth-page"><div className="auth-card">Loading...</div></div>}>
-      <ResetPasswordForm />
-    </Suspense>
-  );
+  return <ResetPasswordForm />;
 }

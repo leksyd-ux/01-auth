@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { signinSchema } from "@/lib/validation/auth-schemas";
-import { verifyPassword } from "@/lib/security/hash";
+import { verifyPassword, needsRehash, hashPassword } from "@/lib/security/hash";
 import { checkRateLimit } from "@/lib/security/rate-limiter";
 import { createSession } from "@/lib/security/session";
 
@@ -53,13 +53,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Verify password with Argon2
+    // 4. Verify password (bcrypt, or legacy Argon2id for pre-migration accounts)
     const passwordMatch = await verifyPassword(user.passwordHash, password);
     if (!passwordMatch) {
       return NextResponse.json(
         { error: "Invalid email or password." },
         { status: 401 }
       );
+    }
+
+    // 4a. Transparently upgrade credentials stored under older/weaker settings.
+    if (await needsRehash(user.passwordHash)) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: await hashPassword(password) },
+      });
     }
 
     // 5. Check if email is verified

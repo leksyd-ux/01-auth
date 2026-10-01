@@ -1,26 +1,72 @@
-import * as argon2 from "argon2";
+import bcrypt from "bcrypt";
 import crypto from "crypto";
 
 /**
- * Hash a plaintext password using Argon2id with memory-hard parameters.
+ * bcrypt work factor. Each increment doubles the CPU cost, so this is the
+ * single most important security knob in this file.
+ */
+const BCRYPT_COST = 10;
+
+/** Prefix identifying a hash produced by bcrypt, used to route verification. */
+const BCRYPT_PREFIX = "$2";
+
+/**
+ * Hash a plaintext password using bcrypt.
+ *
+ * bcrypt generates a unique random salt per call and embeds both the salt and
+ * the cost factor in the returned string, so the hash is self-describing and
+ * never needs a separate salt column.
  */
 export async function hashPassword(plain: string): Promise<string> {
-  return argon2.hash(plain, {
-    type: argon2.argon2id,
-    memoryCost: 65536, // 64 MB memory
-    timeCost: 3,       // 3 iterations
-    parallelism: 4,    // 4 parallel threads
-  });
+  return bcrypt.hash(plain, BCRYPT_COST);
 }
 
 /**
- * Verify a plaintext candidate password against an Argon2 hash.
+ * Verify a plaintext candidate password against a stored hash.
+ *
+ * Supports both bcrypt ($2...) and legacy Argon2id ($argon2id$) hashes so that
+ * accounts created before the bcrypt migration can still sign in. When a
+ * legacy Argon2id hash verifies, the caller should re-hash with bcrypt to
+ * upgrade the stored credential — see needsRehash.
  */
 export async function verifyPassword(hash: string, plain: string): Promise<boolean> {
   try {
-    return await argon2.verify(hash, plain);
+    if (isBcryptHash(hash)) {
+      return await bcrypt.compare(plain, hash);
+    }
+
+    if (isArgon2Hash(hash)) {
+      // Lazy import so the Argon2 native module is only loaded if a legacy
+      // hash is actually encountered.
+      const argon2 = await import("argon2");
+      return await argon2.verify(hash, plain);
+    }
+
+    return false;
   } catch {
     return false;
+  }
+}
+
+export function isBcryptHash(hash: string): boolean {
+  return hash.startsWith(BCRYPT_PREFIX);
+}
+
+export function isArgon2Hash(hash: string): boolean {
+  return hash.startsWith("$argon2");
+}
+
+/**
+ * True when a hash was produced with a weaker setting than current policy, so
+ * the caller can transparently upgrade it on the next successful sign-in.
+ */
+export async function needsRehash(hash: string): Promise<boolean> {
+  if (!isBcryptHash(hash)) return true;
+  try {
+    const cost = Number(hash.split("$")[2]);
+    return cost < BCRYPT_COST;
+  } catch {
+    return true;
   }
 }
 

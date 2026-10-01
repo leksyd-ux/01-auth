@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { forgotPasswordSchema } from "@/lib/validation/auth-schemas";
+import DevMailbox from "@/components/DevMailbox";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -71,6 +72,8 @@ export default function ForgotPasswordPage() {
             {successMessage}
           </div>
         )}
+
+        <DevMailbox address={email} />
 
         <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <div className="form-group">

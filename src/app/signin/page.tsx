@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signinSchema } from "@/lib/validation/auth-schemas";
+import DevMailbox from "@/components/DevMailbox";
+import { setPendingEmail } from "@/lib/client/flow-context";
 
 export default function SigninPage() {
   const router = useRouter();
@@ -37,7 +39,8 @@ export default function SigninPage() {
 
       if (!res.ok) {
         if (data.requiresVerification) {
-          router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+          setPendingEmail(email);
+          router.push("/verify-email");
           return;
         }
 
@@ -134,6 +137,8 @@ export default function SigninPage() {
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
+
+        <DevMailbox address={email} />
 
         <footer className="auth-footer">
           Don&apos;t have an account? <Link href="/signup">Create account</Link>

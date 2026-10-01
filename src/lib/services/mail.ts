@@ -33,7 +33,11 @@ export async function sendVerificationEmail(email: string, code: string): Promis
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const resetLink = `${appUrl}/reset-password?token=${token}`;
+  // The token rides in the URL fragment, not the query string. A fragment is
+// never sent to the server, so the token stays out of the access log, and it is
+// excluded from the Referer header. The reset page reads it on arrival and
+// immediately rewrites the address bar, so it is not left in history either.
+const resetLink = `${appUrl}/reset-password#token=${encodeURIComponent(token)}`;
 
   const emailRecord: DevEmail = {
     id: Math.random().toString(36).substring(2, 9),
