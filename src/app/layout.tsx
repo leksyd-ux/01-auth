@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Tessera · Secure Authentication (Slice 1)",
   description:
-    "Production-minded authentication slice demonstrating Argon2id password hashing, database-backed sessions, rate limiting, and verification code lifecycle.",
+    "Production-minded authentication slice demonstrating bcrypt password hashing with legacy Argon2id verification, database-backed sessions, rate limiting, and verification code lifecycle.",
 };
 
 export default function RootLayout({

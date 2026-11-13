@@ -597,6 +597,8 @@ I chose against allowing the database unique constraint to throw an unhandled 50
 - **Symptom**: A fresh clone reported `Cannot find module 'dotenv/config'` when running `npx prisma migrate dev`, even though the local `node_modules` was fine.
 - **Investigation**: `npm ls dotenv` reported it only as a transitive dependency of `prisma` → `@prisma/config` → `c12`. It resolved locally only because npm hoists it to the top level; nothing in `package.json` declared it, so a different package manager or a non-hoisted install would fail.
 - **Cause**: `prisma.config.ts` does `import "dotenv/config"` while `dotenv` appears nowhere in `dependencies` or `devDependencies`.
+- **Fix**: Declared `dotenv` explicitly in `devDependencies` (`^16.6.1`) and updated the lockfile, so `prisma.config.ts` no longer depends on npm's transitive hoisting. A clean install now resolves the import through a declared dependency.
+
 ### Problem 7: Next.js 15+ Asynchronous `cookies()` Invocation
 - **Symptom**: Session helper calls threw runtime warnings and undefined reads when invoking `cookies().get(SESSION_COOKIE_NAME)`, and `createSession` failed to attach the cookie.
 - **Investigation**: Reviewed the App Router release notes for the `next/headers` API evolution rather than assuming the previous synchronous signature.

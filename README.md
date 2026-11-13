@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Assessment 1 — Authentication Slice
 
-## Getting Started
+Production-minded authentication flow built with Next.js (App Router), TypeScript, PostgreSQL, and Prisma ORM.
 
-First, run the development server:
+## Core Features
+- **bcrypt Hashing with Legacy Compatibility**: New credentials use bcrypt at cost 10; existing Argon2id hashes verify transparently and rehash on successful sign-in.
+- **Database-Backed Sessions**: HMAC-signed, HTTP-only session cookies with server-side revocation.
+- **Atomic Rate Limiting**: PostgreSQL-backed limits enforced in a single statement, including concurrent requests.
+- **Verification and Reset Lifecycle**: Email verification, password reset, and token handling that avoids putting sensitive values in URLs.
+- **Development Mailbox**: A dev-only panel surfaces verification codes and reset links so the flow is completable without an email provider.
 
+## Quick Start
 ```bash
+# Install dependencies
+npm install
+
+# Setup environment
+cp .env.example .env
+
+# Run database migrations
+npx prisma migrate dev
+
+# Start local server on port 3000
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Unauthenticated visits redirect to `/signin`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Verification
+```bash
+bash test-auth-flow.sh
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Documentation
+See [DOCUMENTATION.md](./DOCUMENTATION.md) for the architecture, threat analysis, and evidence breakdown.
